@@ -11,7 +11,6 @@ Pillow==9.4.0
 pycocoevalcap==1.2
 pycocotools==2.0.8
 pynvml==11.5.0
-quantization==0.0.1
 Requests==2.32.3
 scikit_learn==1.5.1
 spacy==3.7.5
