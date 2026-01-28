@@ -167,3 +167,6 @@ checkpoints/
 
 models/eva_vit_g.pth
 models/ram_swin_large_14m.pth
+models/sam_vit_h_4b8939.pth
+
+results/
