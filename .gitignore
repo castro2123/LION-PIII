@@ -174,3 +174,15 @@ results/
 *.png
 
 yolov8s-seg.pt
+yolov8n.pt
+yolov8s.pt
+scene_graph_llm.json
+scene_graph_output.json
+scene_graph_semantic_full.json
+scene_graph_semantic.json
+scene_graph.json
+
+boundingBoxLion.py
+LionSemantic.py
+SmanticGraphNew.py
+baixar.py

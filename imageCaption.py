@@ -1,53 +1,58 @@
-import streamlit as st
+# caption.py
+import gc
 import torch
 from PIL import Image
-from models import load_model
-from preprocessors.lion_preprocessors import ImageEvalProcessor
+
+# modelos CENTRALIZADOS
+from model_registry import get_models
 
 
-# -------------------------
-# Lazy loading + cache
-# -------------------------
-@st.cache_resource
-def load_lion():
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    model = load_model(
-        "lion_t5",
-        "flant5xl",
-        is_eval=True,
-        device=device
-    )
-    processor = ImageEvalProcessor()
-    return model, processor, device
-
-
-# -------------------------
+# ------------------------------------------------
 # Função principal
-# -------------------------
-def run_caption(image_path: str) -> dict:
-    lion_model, lion_preprocessor, device = load_lion()
+# ------------------------------------------------
+def run_caption(img: Image.Image) -> dict:
+    """
+    Recebe uma imagem PIL e retorna:
+    - question
+    - tags (LION)
+    - answer (caption)
+    """
 
-    img = Image.open(image_path).convert("RGB")
+    # 🔥 MODELOS ÚNICOS DA APP
+    models = get_models()
+    lion = models["lion"]
+    processor = models["processor"]
+    device = models["device"]
 
-    question = "Please describe the objects in the image."
-    tags = lion_model.generate_tags(img)
-    processed_img = lion_preprocessor(img)
+    question = "Please describe the image."
 
-    output = lion_model.generate({
-        "image": processed_img.unsqueeze(0).to(device),
-        "question": [question],
-        "tags": [tags],
-        "category": "image_level",
-    })
+    img = img.convert("RGB")
+
+    with torch.no_grad():
+
+        # -------- TAGS LION --------
+        tags = lion.generate_tags(img)
+
+        # -------- PREPROCESS --------
+        processed_img = processor(img).unsqueeze(0).to(device)
+
+        # -------- CAPTION --------
+        output = lion.generate({
+            "image": processed_img,
+            "question": [question],
+            "tags": [tags],
+            "category": "image_level",
+        })
+
+        answer = output if isinstance(output, str) else output[0]
+
+    # 🧹 LIMPEZA EXPLÍCITA (CRÍTICA)
+    del processed_img, output
+    torch.cuda.empty_cache()
+    gc.collect()
 
     return {
         "question": question,
         "tags": tags,
-        "answer": output[0]
+        "answer": answer
     }
-
-if __name__ == "__main__":
-    result = run_caption("images/COCO_train2014_000000024935.jpg")
-    print("Question:", result["question"])
-    print("Tags:", result["tags"])
-    print("Answer:", result["answer"])
