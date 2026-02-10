@@ -11,6 +11,7 @@ from clustering import run_clustering_lion
 from imageCaption import run_caption
 from SpatialGraph import run_spatial_graph
 from SemanticGraph import run_semantic_graph  # versão com grafo unificado
+from objectDetection import run_lion_qa
 
 # ==========================
 # Utils
@@ -41,7 +42,7 @@ st.title("LION - Empowering Multimodal Large Language Model with Dual-Level Visu
 # Upload de imagem
 # ==========================
 uploaded_file = st.file_uploader(
-    "Upload uma imagem",
+    "Upload image",
     type=["jpg", "jpeg", "png"]
 )
 
@@ -57,13 +58,14 @@ if uploaded_file:
             "bbox_result",
             "cluster_result",
             "caption_result",
+            "qa_result",
             "spatial_result",
             "semantic_result",
             "prolog_result",
         ]:
             st.session_state[key] = None
 else:
-    st.info("Faça upload de uma imagem para continuar.")
+    st.info("Upload an image to continue")
     st.stop()
 
 # ==========================
@@ -76,11 +78,12 @@ if "active_mode" not in st.session_state:
 # Selector de modo
 # ==========================
 mode = st.radio(
-    "Escolha o modo",
+    "Choose mode",
     [
-        "Bounding Box + LION Tags",
+        "Caption",
+        "Bounding Box",
         "Clustering",
-        "Captioning",
+        "Interactive LION QA",
         "Spatial Scene Graph",
         "Semantic Scene Graph",
         "Prolog Representation"
@@ -99,23 +102,52 @@ if st.session_state.active_mode != mode:
 # MODOS
 # ======================================================
 
-# 1️⃣ Bounding Box
-if mode == "Bounding Box + LION Tags":
-    st.header("Bounding Box + LION Tags")
-    if st.button("Gerar Bounding Boxes"):
-        with st.spinner("Processando YOLO + LION..."):
-            st.session_state.bbox_result = run_lion_yolo(st.session_state.img)
-    if st.session_state.bbox_result:
-        img_res, tags = st.session_state.bbox_result
-        show_result_image(img_res, max_width=500)
-        st.subheader("Tags")
-        st.json(tags)
+# Captioning
+if mode == "Caption":
+    st.header("Caption")
+    if st.button("Generate Description"):
+        with st.spinner("Generating caption..."):
+            st.session_state.caption_result = run_caption(st.session_state.img)
+    if st.session_state.caption_result:
+        r = st.session_state.caption_result
+        st.write("**Question:**", r["question"])
+        st.write("**Tags:**")
+        st.json(r["tags"])
+        st.write("**Answer:**")
+        st.write(r["answer"])
 
-# 2️⃣ Clustering
+# Bounding Box
+elif mode == "Bounding Box":
+    st.header("Bounding Box")
+
+    if st.button("Generate Bounding Boxes"):
+        with st.spinner("Processing YOLO + LION..."):
+            img_out, detections, tags = run_lion_yolo(st.session_state.img)
+
+            st.session_state.bbox_result = {
+                "img": img_out,
+                "detections": detections,
+                "tags": tags
+            }
+
+    if st.session_state.bbox_result:
+        r = st.session_state.bbox_result
+
+        st.subheader("Image with Bounding Boxes")
+        show_result_image(r["img"], max_width=500)
+
+        st.subheader("Detected Objects")
+        st.json(r["detections"])
+
+        st.subheader("Tags LION (usage semantics)")
+        st.json(r["tags"])
+
+
+# Clustering
 elif mode == "Clustering":
     st.header("Clustering de Objetos")
-    if st.button("Gerar Clusters"):
-        with st.spinner("Processando clustering..."):
+    if st.button("Generate Clusters"):
+        with st.spinner("Processing clustering..."):
             st.session_state.cluster_result = run_clustering_lion(st.session_state.img)
     if st.session_state.cluster_result:
         img_res, clusters = st.session_state.cluster_result
@@ -123,25 +155,53 @@ elif mode == "Clustering":
         st.subheader("Clusters")
         st.json(clusters)
 
-# 3️⃣ Captioning
-elif mode == "Captioning":
-    st.header("Captioning (LION)")
-    if st.button("Gerar Descrição"):
-        with st.spinner("Gerando caption..."):
-            st.session_state.caption_result = run_caption(st.session_state.img)
-    if st.session_state.caption_result:
-        r = st.session_state.caption_result
-        st.write("**Pergunta:**", r["question"])
-        st.write("**Tags:**")
-        st.json(r["tags"])
-        st.write("**Resposta:**")
+#Object Detection
+elif mode == "Interactive LION QA":
+    st.header("Interactive LION Question Answering")
+
+    question = st.text_input(
+        "Type your question about the image.",
+        placeholder="Ex: What are the people doing?"
+    )
+
+    if st.button("Ask LION") and question:
+        with st.spinner("Processing question..."):
+            qa_result = run_lion_qa(
+                st.session_state.img,
+                question
+            )
+
+            # 🔐 guardar no estado
+            st.session_state.qa_result = {
+                "question": question,
+                "img": qa_result[0],
+                "answer": qa_result[1],
+                "bboxes": qa_result[2],
+            }
+
+    # 🔁 mostrar resultado guardado
+    if st.session_state.qa_result:
+        r = st.session_state.qa_result
+
+        st.subheader("Question")
+        st.write(r["question"])
+
+        st.subheader("Image with Bounding Boxes")
+        show_result_image(r["img"], max_width=500)
+
+        st.subheader("Answer")
         st.write(r["answer"])
 
-# 4️⃣ Spatial Graph
+        st.subheader("Bounding Boxes (pixels)")
+        st.json(r["bboxes"])
+
+
+
+# Spatial Graph
 elif mode == "Spatial Scene Graph":
     st.header("Spatial Scene Graph")
-    if st.button("Gerar Grafo Espacial"):
-        with st.spinner("Processando grafo espacial..."):
+    if st.button("Generate Spatial Graph"):
+        with st.spinner("Processing spatial graph..."):
             img_small = st.session_state.img.resize((640, 480))
             st.session_state.spatial_result = run_spatial_graph(img_small)
     if st.session_state.spatial_result:
@@ -151,11 +211,11 @@ elif mode == "Spatial Scene Graph":
         st.subheader("Relações")
         st.json(rel)
 
-# 5️⃣ Semantic Graph (Físico + Semântico)
+# Semantic Graph (Físico + Semântico)
 elif mode == "Semantic Scene Graph":
     st.header("Semantic Scene Graph (Physical + Caption-Aligned)")
-    if st.button("Gerar Grafo Semântico"):
-        with st.spinner("Gerando legenda + grafo..."):
+    if st.button("Generate Semantic Graph"):
+        with st.spinner("Generating caption + graph..."):
             if not st.session_state.caption_result:
                 st.session_state.caption_result = run_caption(st.session_state.img)
             caption = st.session_state.caption_result["answer"]
@@ -167,27 +227,74 @@ elif mode == "Semantic Scene Graph":
         fig, rel, _, semantic_interactions = st.session_state.semantic_result
         st.pyplot(fig)
 
-        st.subheader("Legenda usada")
+        st.subheader("Subtitle used")
         st.write(st.session_state.caption_result["answer"])
 
-        st.subheader("Relações físicas (next_to / holding / etc.)")
+        st.subheader("Physical Relations (next_to / holding / etc.)")
         st.json(rel)
 
-        st.subheader("Interações semânticas extraídas da legenda")
+        st.subheader("Semantic Interactions extracted from the caption")
         st.json(semantic_interactions)
 
-# 6️⃣ Prolog Representation
+# Prolog Representation
 elif mode == "Prolog Representation":
     st.header("🧩 Prolog Representation")
-    if st.button("Gerar Prolog"):
-        if not st.session_state.semantic_result:
-            st.warning("Primeiro gera o Semantic Scene Graph.")
+
+    if st.button("Generate Prolog"):
+        if not st.session_state.caption_result:
+            st.warning("First generate the Captioning.")
         else:
             from prolog_representation import to_prolog
-            fig, relations, objects, _ = st.session_state.semantic_result
-            prolog_code = to_prolog(objects=objects, relations=relations)
+            caption = st.session_state.caption_result["answer"]
+
+            # Gera o código Prolog e relações
+            prolog_code, _ = to_prolog(caption=caption)
             st.session_state.prolog_result = prolog_code
 
-    if st.session_state.prolog_result:
-        st.subheader("Factos Prolog")
-        st.code(st.session_state.prolog_result, language="prolog")
+            # --- Mostra primeiro os fatos Prolog ---
+            st.subheader("Prolog Facts")
+            st.code(st.session_state.prolog_result, language="prolog")
+
+            # --- Depois executa consultas Prolog usando pyswip ---
+            try:
+                from pyswip import Prolog
+                prolog = Prolog()
+
+                # Salva o código Prolog em arquivo temporário
+                with open("scene.pl", "w") as f:
+                    f.write(prolog_code)
+
+                # Carrega o arquivo no Prolog
+                prolog.consult("scene.pl")
+
+                st.subheader("Results of Generic Rules")
+
+                # talking(X,Y)
+                talking_results = list(prolog.query("talking(X,Y)"))
+                if talking_results:
+                    st.markdown("**talking(X,Y):**")
+                    for sol in talking_results:
+                        st.write(f"X = {sol['X']}, Y = {sol['Y']}")
+                else:
+                    st.write("**talking(X,Y):** No results")
+
+                # near(X,Y)
+                near_results = list(prolog.query("near(X,Y)"))
+                if near_results:
+                    st.markdown("**near(X,Y):**")
+                    for sol in near_results:
+                        st.write(f"X = {sol['X']}, Y = {sol['Y']}")
+                else:
+                    st.write("**near(X,Y):** No results")
+
+                # located(X,Place)
+                located_results = list(prolog.query("located(X,Place)"))
+                if located_results:
+                    st.markdown("**located(X,Place):**")
+                    for sol in located_results:
+                        st.write(f"X = {sol['X']}, Place = {sol['Place']}")
+                else:
+                    st.write("**located(X,Place):** No results")
+
+            except Exception as e:
+                st.error(f"Error running Prolog: {e}")
