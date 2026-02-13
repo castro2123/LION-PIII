@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 import torch
 import gc
-
+import matplotlib.pyplot as plt
 # --------------------------
 # Imports dos módulos
 # --------------------------
@@ -212,29 +212,47 @@ elif mode == "Spatial Scene Graph":
         st.json(rel)
 
 # Semantic Graph (Físico + Semântico)
+# ==========================================
+# Semantic Scene Graph (Caption Only)
+# ==========================================
 elif mode == "Semantic Scene Graph":
-    st.header("Semantic Scene Graph (Physical + Caption-Aligned)")
+    st.header("Semantic Scene Graph (Caption Only)")
+
+    # Garantir que a chave existe no session_state
+    if "semantic_result" not in st.session_state:
+        st.session_state.semantic_result = None
+
     if st.button("Generate Semantic Graph"):
-        with st.spinner("Generating caption + graph..."):
-            if not st.session_state.caption_result:
-                st.session_state.caption_result = run_caption(st.session_state.img)
-            caption = st.session_state.caption_result["answer"]
 
-            fig, rel, objs, semantic_interactions = run_semantic_graph(st.session_state.img, caption)
-            st.session_state.semantic_result = (fig, rel, objs, semantic_interactions)
+        if "img" not in st.session_state or st.session_state.img is None:
+            st.warning("Please upload an image first.")
+        else:
+            with st.spinner("Generating caption + semantic graph..."):
+                fig, relations, caption = run_semantic_graph(st.session_state.img)
 
-    if st.session_state.semantic_result:
-        fig, rel, _, semantic_interactions = st.session_state.semantic_result
-        st.pyplot(fig)
+                st.session_state.semantic_result = {
+                    "fig": fig,
+                    "relations": relations,
+                    "caption": caption
+                }
 
-        st.subheader("Subtitle used")
-        st.write(st.session_state.caption_result["answer"])
+    # Mostrar resultados apenas se existirem
+    if st.session_state.semantic_result is not None:
 
-        st.subheader("Physical Relations (next_to / holding / etc.)")
-        st.json(rel)
+        r = st.session_state.semantic_result
 
-        st.subheader("Semantic Interactions extracted from the caption")
-        st.json(semantic_interactions)
+        st.pyplot(r["fig"])
+        plt.close(r["fig"])  # evita memory leak
+
+        st.subheader("Caption Used (Auto Generated)")
+        st.write(r["caption"])
+
+        st.subheader("Semantic Relations extracted from caption")
+        st.json([
+            {"subject": s, "predicate": p, "object": o}
+            for (s, p, o) in r["relations"]
+        ])
+
 
 # Prolog Representation
 elif mode == "Prolog Representation":

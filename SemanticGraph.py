@@ -1,288 +1,216 @@
-import gc
-import math
-import itertools
 import networkx as nx
 import matplotlib.pyplot as plt
-import torch
-from PIL import Image
 import spacy
+from PIL import Image
 
-from model_registry import get_models
-
-# =========================
-# NLP
-# =========================
 nlp = spacy.load("en_core_web_sm")
 
-# =========================
-# Geometria
-# =========================
-def center(b):
-    return ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)
-
-def dist(b1, b2):
-    return math.dist(center(b1), center(b2))
 
 # =========================
-# Constantes linguísticas
+# Helpers
 # =========================
-META_SUBJECTS = {"image", "photo", "picture", "scene"}
-META_VERBS = {"depict", "show", "illustrate", "feature"}
-
-WEAK_VERBS = {"seem", "appear"}  # ⚠️ NÃO inclui "be"
-
-BAD_OBJECTS = {
-    "one", "some", "several", "many", "thing",
-    "area", "place", "setting", "side", "variety"
-}
-
-PRONOUNS = {"it", "them", "this", "that", "there"}
-BAD_SUBJECTS = {"other", "others"}
-
-LOCATION_PREPS = {
-    "in", "on", "at", "near", "around", "behind", "under", "over"
-}
-
-BAD_PREPS = {"throughout"}
-
-# =========================
-# Utils NLP
-# =========================
-def norm(tok):
-    return tok.lemma_.lower()
-
-def clean_entity(s):
-    for bad in ["several ", "many ", "group of ", "a group of "]:
-        s = s.replace(bad, "")
-    return s.strip()
-
 def noun_phrase(tok):
     parts = []
     for t in tok.lefts:
-        if t.pos_ in {"ADJ", "NOUN", "PROPN"}:
+        if t.dep_ in {"amod", "compound"}:
             parts.append(t.lemma_.lower())
     parts.append(tok.lemma_.lower())
     return " ".join(parts)
 
+
+def clean_entity(text):
+    text = text.lower()
+    replacements = [
+        "a couple of ",
+        "couple of ",
+        "several ",
+        "two ",
+        "one of the ",
+        "one of ",
+    ]
+    for r in replacements:
+        text = text.replace(r, "")
+    return text.strip()
+
+
 # =========================
-# 1️⃣ Extração semântica ROBUSTA
+# Extract Scene Graph
 # =========================
-def extract_semantic_interactions(caption: str):
+def extract_semantic_relations(caption: str):
     doc = nlp(caption)
     relations = []
-    last_subjects = []
+    last_subject = None
 
     for sent in doc.sents:
 
-        # ignorar frases meta
-        if any(tok.lemma_ in META_VERBS for tok in sent) and \
-           any(tok.text.lower() in META_SUBJECTS for tok in sent):
-            continue
+        subjects_in_sentence = []
 
-        # ignorar "there is / there are"
-        if sent.root.lemma_ == "be" and any(tok.text.lower() == "there" for tok in sent):
-            continue
+        # --- Detect subjects ---
+        for token in sent:
 
-        subjects = []
+            if token.dep_ in ("nsubj", "nsubjpass"):
 
-        # --- sujeitos explícitos ---
-        for tok in sent:
-            if tok.dep_ in ("nsubj", "nsubjpass") and tok.pos_ in {"NOUN", "PROPN"}:
-                ent = clean_entity(noun_phrase(tok))
-                if ent in BAD_OBJECTS or ent in PRONOUNS or ent in BAD_SUBJECTS:
+                subject_token = token
+
+                # Handle "one of the men"
+                if token.lemma_.lower() == "one":
+                    for child in token.children:
+                        if child.dep_ == "prep" and child.lemma_ == "of":
+                            for pobj in child.children:
+                                if pobj.dep_ == "pobj":
+                                    subject_token = pobj
+
+                subject = clean_entity(noun_phrase(subject_token))
+
+                # pronoun resolution
+                if subject in {"they", "them"} and last_subject:
+                    subject = last_subject
+                else:
+                    last_subject = subject
+
+                # ignore generic subjects
+                if subject in {"other object", "image", "photo"}:
                     continue
-                subjects.append(ent)
 
-        # herdar sujeitos da frase anterior (ex: "with one of the machines...")
-        if not subjects and last_subjects:
-            subjects = last_subjects.copy()
+                subjects_in_sentence.append(subject)
 
-        if not subjects:
-            continue
+                verb = token.head.lemma_.lower()
 
-        last_subjects = subjects.copy()
-
-        # --- verbos ---
-        for verb in sent:
-            if verb.pos_ != "VERB":
-                continue
-
-            v = norm(verb)
-            if v in META_VERBS or v in WEAK_VERBS:
-                continue
-
-            # 🔑 CASO ESPECIAL: "X is Y" / "X being Y"
-            if verb.lemma_ == "be":
-                for child in verb.children:
-                    if child.dep_ == "attr" and child.pos_ in {"NOUN", "PROPN"}:
+                # --- Direct objects ---
+                for child in token.head.children:
+                    if child.dep_ in ("dobj", "obj") and child.pos_ in {"NOUN", "PROPN"}:
                         obj = clean_entity(noun_phrase(child))
-                        if obj not in BAD_OBJECTS:
-                            for s in subjects:
-                                relations.append({
-                                    "subject": s,
-                                    "predicate": "is",
-                                    "object": obj,
-                                    "type": "semantic"
-                                })
-                continue
+                        relations.append((subject, verb, obj))
 
-            # --- objetos e preposições ---
-            for child in verb.children:
-
-                # objeto direto
-                if child.dep_ in ("dobj", "obj", "attr") and child.pos_ in {"NOUN", "PROPN"}:
-                    obj = clean_entity(noun_phrase(child))
-                    if obj not in BAD_OBJECTS and obj not in PRONOUNS:
-                        for s in subjects:
-                            relations.append({
-                                "subject": s,
-                                "predicate": v,
-                                "object": obj,
-                                "type": "semantic"
-                            })
-
-                # preposições
-                if child.dep_ == "prep" and child.lemma_ not in BAD_PREPS:
-                    prep = child.lemma_
-                    for pobj in child.children:
-                        if pobj.pos_ not in {"NOUN", "PROPN"}:
-                            continue
-                        obj = clean_entity(noun_phrase(pobj))
-                        if obj in BAD_OBJECTS or obj in PRONOUNS:
+                # --- Prepositions ---
+                for prep in token.head.children:
+                    if prep.dep_ == "prep":
+                        if prep.lemma_ == "of":
                             continue
 
-                        predicate = prep if prep in LOCATION_PREPS else f"{v}_{prep}"
-                        for s in subjects:
-                            relations.append({
-                                "subject": s,
-                                "predicate": predicate,
-                                "object": obj,
-                                "type": "semantic"
-                            })
+                        # in front of
+                        if prep.lemma_ == "in":
+                            next_token = prep.nbor(1) if prep.i + 1 < len(doc) else None
+                            if next_token and next_token.text.lower() == "front":
+                                for of_prep in next_token.children:
+                                    if of_prep.dep_ == "prep":
+                                        for pobj in of_prep.children:
+                                            if pobj.pos_ in {"NOUN", "PROPN"}:
+                                                obj = clean_entity(noun_phrase(pobj))
+                                                relations.append((subject, "in_front_of", obj))
+                                continue
 
-    # remover duplicados
-    uniq, seen = [], set()
-    for r in relations:
-        key = (r["subject"], r["predicate"], r["object"])
-        if key not in seen:
-            seen.add(key)
-            uniq.append(r)
+                        # normal prepositions
+                        for pobj in prep.children:
+                            if pobj.pos_ in {"NOUN", "PROPN"}:
+                                obj = clean_entity(noun_phrase(pobj))
+                                relations.append((subject, prep.lemma_, obj))
 
-    return uniq
+                # --- Reciprocal ---
+                for prep in token.head.children:
+                    if prep.dep_ == "prep":
+                        for pobj in prep.children:
+                            phrase = " ".join([t.text.lower() for t in pobj.subtree])
+                            if phrase in {"each other", "one another"}:
+                                relations.append((subject, verb, subject))
+
+        # --- Capture conjoined / gerund verbs (talking, working) ---
+        for token in sent:
+            if token.pos_ == "VERB" and token.dep_ in {"conj", "advcl", "xcomp"}:
+                verb = token.lemma_.lower()
+                for subject in subjects_in_sentence:
+                    # reciprocal
+                    for prep in token.children:
+                        if prep.dep_ == "prep":
+                            for pobj in prep.children:
+                                phrase = " ".join([t.text.lower() for t in pobj.subtree])
+                                if phrase in {"each other", "one another"}:
+                                    relations.append((subject, verb, subject))
+                    # direct objects
+                    for child in token.children:
+                        if child.dep_ in ("dobj", "obj") and child.pos_ in {"NOUN", "PROPN"}:
+                            obj = clean_entity(noun_phrase(child))
+                            relations.append((subject, verb, obj))
+
+        # --- Existential: there are X ---
+        for token in sent:
+            if token.dep_ == "expl" and token.text.lower() == "there":
+                for child in token.head.children:
+                    if child.dep_ == "attr" and child.pos_ in {"NOUN", "PROPN"}:
+                        subject = clean_entity(noun_phrase(child))
+                        last_subject = subject
+                        for prep in child.children:
+                            if prep.dep_ == "prep" and prep.lemma_ != "of":
+                                for pobj in prep.children:
+                                    if pobj.pos_ in {"NOUN", "PROPN"}:
+                                        obj = clean_entity(noun_phrase(pobj))
+                                        relations.append((subject, prep.lemma_, obj))
+                        # --- Handle lists after "such as" ---
+                        for token2 in child.children:
+                            if token2.lemma_ == "such":
+                                for item in token2.children:
+                                    if item.dep_ == "pobj":
+                                        obj = clean_entity(noun_phrase(item))
+                                        relations.append((subject, "has", obj))
+                                        # handle conjoined items
+                                        for conj in item.conjuncts:
+                                            obj2 = clean_entity(noun_phrase(conj))
+                                            relations.append((subject, "has", obj2))
+
+        # --- Including ---
+        for token in sent:
+            if token.lemma_ == "include":
+                head = token.head
+                if head.pos_ in {"NOUN", "PROPN"}:
+                    subject = clean_entity(noun_phrase(head))
+                    for child in token.children:
+                        if child.pos_ in {"NOUN", "PROPN"}:
+                            obj = clean_entity(noun_phrase(child))
+                            relations.append((subject, "include", obj))
+
+    return list(set(relations))
+
 
 # =========================
-# 2️⃣ Alinhamento com YOLO
+# Build Graph
 # =========================
-def align_with_visual_objects(relations, objects):
-    by_class = {}
-    for o in objects:
-        by_class.setdefault(o["class"], []).append(o["name"])
-
-    aligned = []
-    for r in relations:
-        r = r.copy()
-        if r["subject"] in by_class:
-            r["subject"] = by_class[r["subject"]][0]
-        if r["object"] in by_class:
-            r["object"] = by_class[r["object"]][0]
-        aligned.append(r)
-
-    return aligned
-
-# =========================
-# 3️⃣ Função principal
-# =========================
-def run_semantic_graph(img: Image.Image, caption: str):
-    models = get_models()
-    yolo = models["yolo_det"]
-
-    img = img.convert("RGB")
-
-    # -------- YOLO --------
-    with torch.no_grad():
-        res = yolo(img, conf=0.35)[0]
-
-    objects = []
-    counts = {}
-    for i, box in enumerate(res.boxes):
-        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-        cls = yolo.names[int(box.cls[0])]
-        counts[cls] = counts.get(cls, 0) + 1
-        objects.append({
-            "id": i,
-            "name": f"{cls}_{counts[cls]}",
-            "class": cls,
-            "box": (x1, y1, x2, y2),
-            "type": "physical"
-        })
-
-    # -------- Relações físicas --------
-    physical = []
-    for o1, o2 in itertools.combinations(objects, 2):
-        if dist(o1["box"], o2["box"]) < 160:
-            physical.append({
-                "subject": o1["name"],
-                "predicate": "next_to",
-                "object": o2["name"],
-                "type": "physical"
-            })
-
-    # -------- Relações semânticas --------
-    semantic = extract_semantic_interactions(caption)
-    semantic = align_with_visual_objects(semantic, objects)
-
-    # -------- Grafo --------
+def build_caption_graph(caption: str):
+    relations = extract_semantic_relations(caption)
     G = nx.DiGraph()
 
-    for o in objects:
-        G.add_node(o["name"], type="physical")
+    for s, p, o in relations:
+        G.add_node(s)
+        G.add_node(o)
+        G.add_edge(s, o, label=p)
 
-    for r in semantic:
-        G.add_node(r["subject"], type="semantic")
-        G.add_node(r["object"], type="semantic")
-        G.add_edge(
-            r["subject"],
-            r["object"],
-            label=r["predicate"],
-            edge_type="semantic"
-        )
-
-    for r in physical:
-        G.add_edge(
-            r["subject"],
-            r["object"],
-            label=r["predicate"],
-            edge_type="physical"
-        )
-
-    # -------- Visualização --------
     fig = plt.figure(figsize=(12, 10))
-    pos = nx.spring_layout(G, seed=42, k=1.6)
+    pos = nx.spring_layout(G, k=1.5, seed=42)
 
-    colors = [
-        "#cce5ff" if G.nodes[n].get("type") == "physical" else "#ffe0e0"
-        for n in G.nodes
-    ]
+    nx.draw(
+        G,
+        pos,
+        with_labels=True,
+        node_size=3000,
+        node_color="lightblue",
+        font_size=10
+    )
 
-    nx.draw_networkx_nodes(G, pos, node_size=1800,
-                           node_color=colors, edgecolors="black")
-    nx.draw_networkx_labels(G, pos, font_size=9)
-
-    phys = [(u, v) for u, v, d in G.edges(data=True)
-            if d["edge_type"] == "physical"]
-    sem = [(u, v) for u, v, d in G.edges(data=True)
-           if d["edge_type"] == "semantic"]
-
-    nx.draw_networkx_edges(G, pos, edgelist=phys,
-                           width=2, edge_color="#1f77b4")
-    nx.draw_networkx_edges(G, pos, edgelist=sem,
-                           width=2, edge_color="#d62728", style="dashed")
-
-    labels = {(u, v): d["label"] for u, v, d in G.edges(data=True)}
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels, font_size=8)
+    labels = nx.get_edge_attributes(G, "label")
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
 
     plt.axis("off")
-    gc.collect()
-    torch.cuda.empty_cache()
+    return fig, relations
 
-    return fig, physical, objects, semantic
+
+# =========================
+# Run Semantic Graph
+# =========================
+def run_semantic_graph(img: Image.Image):
+    from imageCaption import run_caption
+
+    caption_dict = run_caption(img)
+    caption = caption_dict["answer"]
+
+    fig, relations = build_caption_graph(caption)
+
+    return fig, relations, caption
