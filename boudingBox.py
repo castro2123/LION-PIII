@@ -52,7 +52,6 @@ def run_lion_yolo(
 
                 label = names[cls_id].lower()
 
-                # guardar estrutura
                 detections.append({
                     "label": label,
                     "score": round(score, 3),

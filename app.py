@@ -1,8 +1,13 @@
+from SpatialGraphVideo import generate_spatial_graph_frames
+from objectDetection_Video import run_lion_qa_video
+from SemanticGraphVideo import generate_semantic_graph_frames
 import streamlit as st
 from PIL import Image
 import torch
 import gc
 import matplotlib.pyplot as plt
+import pandas as pd
+
 # --------------------------
 # Imports dos módulos
 # --------------------------
@@ -12,7 +17,10 @@ from imageCaption import run_caption
 from SpatialGraph import run_spatial_graph
 from SemanticGraph import run_semantic_graph  # versão com grafo unificado
 from objectDetection import run_lion_qa
-
+from videoCaption import run_video_caption
+from boundingBox_video import run_yolo_video_fast
+from clustering_video import run_clustering_video_streamlit
+from utils import show_result_image
 # ==========================
 # Utils
 # ==========================
@@ -42,31 +50,103 @@ st.title("LION - Empowering Multimodal Large Language Model with Dual-Level Visu
 # Upload de imagem
 # ==========================
 uploaded_file = st.file_uploader(
-    "Upload image",
-    type=["jpg", "jpeg", "png"]
+    "Upload image or video",
+    type=["jpg", "jpeg", "png", "mp4", "avi", "mov"]
 )
 
 if uploaded_file:
-    img = Image.open(uploaded_file).convert("RGB")
-    img_key = hash(img.tobytes())
 
-    if "img_key" not in st.session_state or st.session_state.img_key != img_key:
-        clear_memory()
-        st.session_state.img = img
-        st.session_state.img_key = img_key
-        for key in [
-            "bbox_result",
-            "cluster_result",
-            "caption_result",
-            "qa_result",
-            "spatial_result",
-            "semantic_result",
-            "prolog_result",
-        ]:
-            st.session_state[key] = None
+    file_type = uploaded_file.type
+
+    if "video" in file_type:
+
+        video_bytes = uploaded_file.getvalue()
+        video_key = hash(video_bytes)
+
+        if "video_key" not in st.session_state or st.session_state.video_key != video_key:
+
+            clear_memory()
+
+            st.session_state.video_file = uploaded_file
+            st.session_state.video_key = video_key
+            st.session_state.img = None
+
+            # 🔥 limpar resultados apenas quando o vídeo muda
+            for key in [
+                "video_results",
+                "output_video",
+                "video_bbox_results",
+                "output_video_bbox",
+                "video_clustering_results",
+                "output_video_clustering",
+                "video_qa_results",
+                "video_qa_appearance",
+                "output_video_qa",
+                "output_graph_video"
+            ]:
+                st.session_state[key] = None
+
+        # Modos disponíveis para vídeo
+        available_modes = [
+            "Video Caption",
+            "Bounding Box Video",
+            "Clustering Video",
+            "Interactive Video QA",
+            "Spatial Graph Video",
+            "Semantic Graph Video"
+
+        ]
+
+    else:
+        # Guardar imagem
+        img = Image.open(uploaded_file).convert("RGB")
+        img_key = hash(img.tobytes())
+
+        if "img_key" not in st.session_state or st.session_state.img_key != img_key:
+            clear_memory()
+            st.session_state.img = img
+            st.session_state.img_key = img_key
+
+            # Limpar resultados de imagem anteriores
+            for key in [
+                "bbox_result",
+                "cluster_result",
+                "caption_result",
+                "qa_result",
+                "spatial_result",
+                "semantic_result",
+                "prolog_result",
+                "video_results",
+                "video_file",
+                "output_video",
+                "active_mode",
+                "output_video_qa"
+            ]:
+                st.session_state[key] = None
+
+        # Modos disponíveis para imagem
+        available_modes = [
+            "Caption",
+            "Bounding Box",
+            "Clustering",
+            "Interactive LION QA",
+            "Spatial Scene Graph",
+            "Semantic Scene Graph",
+            "Prolog Representation"
+        ]
+
 else:
-    st.info("Upload an image to continue")
+    st.info("Upload an image or video to continue")
     st.stop()
+
+# ==========================
+# Selector de modo
+# ==========================
+mode = st.radio(
+    "Choose mode",
+    available_modes,
+    horizontal=True
+)
 
 # ==========================
 # Estado inicial
@@ -74,22 +154,6 @@ else:
 if "active_mode" not in st.session_state:
     st.session_state.active_mode = None
 
-# ==========================
-# Selector de modo
-# ==========================
-mode = st.radio(
-    "Choose mode",
-    [
-        "Caption",
-        "Bounding Box",
-        "Clustering",
-        "Interactive LION QA",
-        "Spatial Scene Graph",
-        "Semantic Scene Graph",
-        "Prolog Representation"
-    ],
-    horizontal=True
-)
 
 # ==========================
 # Limpeza ao trocar de aba
@@ -316,3 +380,337 @@ elif mode == "Prolog Representation":
 
             except Exception as e:
                 st.error(f"Error running Prolog: {e}")
+
+
+# ===============================
+# Streamlit - Video Caption
+# ===============================
+elif mode == "Video Caption":
+    st.header("🎬 Video Caption (Ultra Fast Optimized)")
+
+    # Inicializar session_state
+    for key in ["video_results", "output_video", "video_file"]:
+        if key not in st.session_state:
+            st.session_state[key] = None
+
+    # Upload do vídeo
+    uploaded_video = st.file_uploader(
+        "Upload a video file",
+        type=["mp4", "avi", "mov"]
+    )
+
+    if uploaded_video is not None:
+        st.session_state.video_file = uploaded_video
+        st.session_state.video_results = None
+        st.session_state.output_video = None
+
+    if st.session_state.video_file is None:
+        st.warning("Please upload a video file.")
+        st.stop()
+
+    # Configurações
+    frame_interval = st.slider(
+        "Process 1 frame every N frames",
+        min_value=30,
+        max_value=300,
+        value=60,
+        step=10
+    )
+
+    # Botão gerar legendas
+    if st.button("Generate Video Captions"):
+        with st.spinner("Processing video..."):
+            temp_path = "temp_video.mp4"
+            with open(temp_path, "wb") as f:
+                f.write(st.session_state.video_file.getbuffer())
+
+            results, output_video = run_video_caption(
+                temp_path,
+                frame_interval=frame_interval
+            )
+
+            st.session_state.video_results = results
+            st.session_state.output_video = output_video
+
+    # Mostrar vídeo centralizado e menor
+    if st.session_state.output_video is not None:
+        st.subheader("🎥 Captioned Video")
+        col1, col2, col3 = st.columns([1, 1.5, 1])
+        with col2:
+            st.video(st.session_state.output_video, start_time=0)
+
+        # Mostrar captions
+        st.subheader("Generated Captions")
+        if st.session_state.video_results:
+            for r in st.session_state.video_results:
+                st.markdown(f"**Time {r['timestamp']}s**")
+                st.write(r["caption"])
+                st.divider()
+
+elif mode == "Bounding Box Video":
+    st.header("🎬 Video Bounding Boxes")
+
+    # Inicializar estado
+    for key in ["video_bbox_results", "output_video_bbox"]:
+        if key not in st.session_state:
+            st.session_state[key] = None
+
+    # Upload
+    uploaded_video = st.file_uploader(
+        "Upload a video file",
+        type=["mp4", "avi", "mov"],
+        key="bbox_video_upload"
+    )
+
+    if uploaded_video is not None:
+        st.session_state.video_file = uploaded_video
+        st.session_state.video_bbox_results = None
+        st.session_state.output_video_bbox = None
+
+    if "video_file" not in st.session_state or st.session_state.video_file is None:
+        st.warning("Please upload a video file.")
+        st.stop()
+
+    # Slider para acelerar
+    frame_interval = st.slider(
+        "Process 1 frame every N frames",
+        min_value=1,
+        max_value=60,
+        value=1
+    )
+
+    if st.button("Generate Bounding Boxes for Video"):
+
+        with st.spinner("Processing video..."):
+
+            temp_path = "temp_video_bbox.mp4"
+            with open(temp_path, "wb") as f:
+                f.write(st.session_state.video_file.getbuffer())
+
+            output_path, frame_results = run_yolo_video_fast(
+                temp_path,
+                conf_threshold=0.25,
+                frame_interval=frame_interval
+            )
+
+            st.session_state.video_bbox_results = frame_results
+            st.session_state.output_video_bbox = output_path
+
+    # Mostrar vídeo corretamente
+    if st.session_state.output_video_bbox is not None:
+
+        st.subheader("🎥 Video with Bounding Boxes")
+
+        with open(st.session_state.output_video_bbox, "rb") as f:
+            video_bytes = f.read()
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.video(video_bytes)
+
+        # Mostrar tabela leve
+        st.subheader("Sample Frame Detections")
+
+        if st.session_state.video_bbox_results:
+
+            for r in st.session_state.video_bbox_results[:5]:
+
+                st.markdown(f"**Frame {r['frame_number']}**")
+
+                if r["detections"]:
+                    df = pd.DataFrame(r["detections"])
+                    st.dataframe(df, use_container_width=True)
+                else:
+                    st.write("No detections")
+
+                st.divider()
+
+if mode == "Clustering Video":
+    st.header("🎬 Video Clustering")
+
+    uploaded_video = st.file_uploader(
+        "Upload video for clustering",
+        type=["mp4","avi","mov"]
+    )
+
+    if uploaded_video is not None:
+        st.session_state.video_file = uploaded_video
+
+    if st.session_state.video_file is None:
+        st.warning("Please upload a video.")
+        st.stop()
+
+    frame_interval = st.slider("Process 1 frame every N frames", 1, 60, 5)
+
+    if st.button("Generate Clustering Video"):
+        temp_path = "temp_video_clustering.mp4"
+        with open(temp_path, "wb") as f:
+            f.write(st.session_state.video_file.getbuffer())
+
+        output_path, frame_results = run_clustering_video_streamlit(
+            temp_path,
+            frame_interval=frame_interval,
+            conf_thresh=0.5
+        )
+
+        st.session_state.output_video_clustering = output_path
+        st.session_state.video_clustering_results = frame_results
+
+    # Mostrar vídeo
+    if st.session_state.get("output_video_clustering") is not None:
+        with open(st.session_state.output_video_clustering, "rb") as f:
+            st.video(f.read())
+            st.subheader("Sample Frame Clusters")
+
+        for r in st.session_state.video_clustering_results[:5]:
+            st.markdown(f"**Frame {r['frame_number']}**")
+            st.json(r["clusters"])
+
+elif mode == "Interactive Video QA":
+    st.header("🎬 Interactive Video QA (Object Detection + LION QA)")
+
+    # Upload
+    uploaded_video = st.file_uploader(
+        "Upload a video file",
+        type=["mp4", "avi", "mov"],
+        key="qa_video_upload"
+    )
+
+    if uploaded_video is not None:
+        st.session_state.video_file = uploaded_video
+        st.session_state.video_qa_results = None
+        st.session_state.output_video_qa = None
+
+    if "video_file" not in st.session_state or st.session_state.video_file is None:
+        st.warning("Please upload a video file.")
+        st.stop()
+
+    # Pergunta do usuário
+    question = st.text_input(
+        "Type your question about the video.",
+        placeholder="Ex: Is there a knife in the video?"
+    )
+
+    frame_interval = st.slider(
+        "Process 1 frame every N frames",
+        min_value=1,
+        max_value=60,
+        value=5
+    )
+
+    if st.button("Run LION QA on Video") and question:
+        with st.spinner("Processing video..."):
+            temp_path = "temp_video_qa.mp4"
+            with open(temp_path, "wb") as f:
+                f.write(st.session_state.video_file.getbuffer())
+
+            # ======================
+            # Chamada da função QA
+            # ======================
+            output_path, frame_results, object_appearance = run_lion_qa_video(
+                temp_path,
+                question,
+                frame_interval=frame_interval,
+                display_delay=0  # pode colocar >0 se quiser ver frames no Streamlit
+            )
+
+            st.session_state.output_video_qa = output_path
+            st.session_state.video_qa_results = frame_results
+            st.session_state.video_qa_appearance = object_appearance
+
+    # ======================
+    # Mostrar vídeo e resultados
+    # ======================
+    if st.session_state.output_video_qa is not None:
+        st.subheader("🎥 Video with Bounding Boxes (LION QA)")
+        with open(st.session_state.output_video_qa, "rb") as f:
+            st.video(f.read())
+
+        st.subheader("Frames where object appears")
+        if st.session_state.video_qa_appearance:
+            for r in st.session_state.video_qa_appearance[:10]:  # mostra os primeiros 10
+                st.markdown(f"**Frame {r['frame_number']} ({r['timestamp']:.2f}s)**")
+                st.write("Answer:", r["answer"])
+                st.json(r["bboxes"])
+                st.divider()
+        else:
+            st.write("No objects detected matching your question.")
+
+elif mode == "Spatial Graph Video":
+
+    st.header("🎬 Interactive Spatial Graph Video Viewer")
+
+    uploaded_video = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"], key="graph_video_upload")
+
+    if uploaded_video:
+        temp_path = "temp_graph_input.mp4"
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_video.getbuffer())
+
+        frame_interval = st.slider("Process 1 frame every N frames", 1, 60, 10)
+
+        # Botão para processar o vídeo
+        if st.button("Generate Spatial Graphs for Video"):
+            with st.spinner("Processing video frames..."):
+                frames_data = generate_spatial_graph_frames(temp_path, frame_interval)
+                st.session_state.frames_data = frames_data
+                st.success(f"Processed {len(frames_data)} frames!")
+
+        # Mostrar grafo interativo
+        if "frames_data" in st.session_state:
+            frames_data = st.session_state.frames_data
+
+            # Slider para selecionar frame
+            frame_nums = [f["frame_number"] for f in frames_data]
+            selected_frame = st.select_slider("Select frame", options=frame_nums)
+
+            frame_info = next(f for f in frames_data if f["frame_number"] == selected_frame)
+
+            st.subheader(f"Frame {selected_frame}")
+            st.image(frame_info["image"], caption="Original Frame", use_column_width=True)
+
+            st.subheader("Spatial Graph")
+            st.pyplot(frame_info["graph_fig"])
+
+            st.subheader("Relations Extracted")
+            st.json(frame_info["relations"])
+
+elif mode == "Semantic Graph Video":
+
+    st.header("🎬 Interactive Semantic Graph Video Viewer")
+
+    uploaded_video = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"], key="semantic_graph_video_upload")
+
+    if uploaded_video:
+        temp_path = "temp_video_semantic.mp4"
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_video.getbuffer())
+
+        frame_interval = st.slider("Process 1 frame every N frames", 1, 60, 10)
+
+        if st.button("Generate Semantic Graphs for Video"):
+            with st.spinner("Processing video frames..."):
+                frames_data = generate_semantic_graph_frames(temp_path, frame_interval)
+                st.session_state.frames_data = frames_data
+                st.success(f"Processed {len(frames_data)} frames!")
+
+        # Interatividade frame a frame
+        if "frames_data" in st.session_state:
+            frames_data = st.session_state.frames_data
+            frame_nums = [f["frame_number"] for f in frames_data]
+            selected_frame = st.select_slider("Select frame", options=frame_nums)
+
+            frame_info = next(f for f in frames_data if f["frame_number"] == selected_frame)
+
+            st.subheader(f"Frame {selected_frame}")
+            st.image(frame_info["image"], caption="Original Frame", use_column_width=True)
+
+            st.subheader("Semantic Graph")
+            st.pyplot(frame_info["graph_fig"])
+
+            st.subheader("Caption")
+            st.write(frame_info["caption"])
+
+            st.subheader("Relations Extracted")
+            st.json(frame_info["relations"])
+

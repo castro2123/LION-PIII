@@ -132,7 +132,6 @@ def extract_semantic_relations(caption: str):
                             obj = clean_entity(noun_phrase(child))
                             relations.append((subject, verb, obj))
 
-        # --- Existential: there are X ---
         for token in sent:
             if token.dep_ == "expl" and token.text.lower() == "there":
                 for child in token.head.children:

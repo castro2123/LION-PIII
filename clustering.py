@@ -47,18 +47,14 @@ def run_clustering_lion(img: Image.Image, conf_thresh=0.5, crop_size=(224, 224))
     w, h = img.size
 
     with torch.no_grad():
-        # ---------- 1. Tags globais ----------
         global_tags = lion.generate_tags(img)
         tags_assigned = set()
-
-        # ---------- 2. Detecta objetos ----------
         res = yolo(img, conf=conf_thresh)[0]
         overlay = np.zeros((h, w, 4), dtype=np.uint8)
         clusters = {}
 
         if res.masks is not None:
             for i in range(len(res.masks.data)):
-                # máscara YOLO
                 m = res.masks.data[i].detach().cpu().numpy()
                 m = (m > 0.5).astype(np.uint8)
                 m = Image.fromarray(m * 255).resize((w, h), Image.NEAREST)
