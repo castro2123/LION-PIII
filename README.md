@@ -1,75 +1,193 @@
-<div align="center">
+# 🦁 LION Multimodal Vision Intelligence
 
-<!-- <h1>JiuTian (九天) </h1> -->
-<h2 class="papername"> <img src="./assets/LION_logo.png" style="vertical-align: middle; height: 1em; padding: 0 0.2em;"> LION: Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge </h2>
-<div>
-<div>
-    <a href="https://scholar.google.com/citations?user=Mpg0w3cAAAAJ" target="_blank">Gongwei Chen</a>,
-    <a href="https://www.slywiki.cn/" target="_blank">Leyang Shen</a>,
-    <a href="https://rshaojimmy.github.io/" target="_blank">Rui Shao*</a>,
-    <a href="https://xiang-deng-dl.github.io/" target="_blank">Xiang Deng</a>,
-    <a href="https://liqiangnie.github.io/" target="_blank">Liqiang Nie*</a>
-</div>
+<img src="./assets/LION_logo.png" width="120">
 
-School of Computer Science and Technology, Harbin Institute of Technology, Shenzhen<br>
-*Corresponding author
+**Interactive Multimodal Vision System based on LION**
+Empowering image and video understanding with spatial reasoning, semantic graphs and symbolic logic.
 
-IEEE Conference on Computer Vision and Pattern Recognition (CVPR) 2024
+---
 
-[[Paper]](https://arxiv.org/abs/2311.11860) [[Project Page]](https://rshaojimmy.github.io/Projects/JiuTian-LION) [[Video(YouTube)]](https://www.youtube.com/watch?v=YzJ5MZFS5RA) [[Video(bilibili)]](https://www.bilibili.com/video/BV1kH4y1y7UR/) 
+# Overview
 
-:fire: Details will be released. Stay tuned :beers: :+1: 
+This project extends the **LION (Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge)** framework and provides an **interactive application for multimodal visual understanding**.
 
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fwww.slywiki.cn&count_bg=%2379C83D&title_bg=%23555555&icon=github.svg&icon_color=%23E7E7E7&title=Visitors&edge_flat=false)](https://hits.seeyoufarm.com)
+The system integrates **deep learning, scene graphs and symbolic reasoning** to analyze both **images and videos**.
 
-</div>
-<br>
-  
-<img src='assets/LION-Introduction.jpg' width='90%'>
+The application allows users to:
 
-</div>
+* Detect objects
+* Generate captions
+* Ask questions about images or videos
+* Extract spatial relationships
+* Build semantic scene graphs
+* Cluster visual objects
+* Perform symbolic reasoning using **Prolog**
 
-## If you find this work useful for your research, please kindly cite our paper and star our repo.
+All functionalities are available through an **interactive Streamlit interface**.
 
-## Updates
-- [07/2024] Code and checkpoints are released.
-- [02/2024] LION has been accepted by CVPR 2024.
-- [11/2023] [Arxiv paper](https://arxiv.org/abs/2311.11860) released.
-- [11/2023] [Project page](https://rshaojimmy.github.io/Projects/JiuTian-LION) released.
+---
 
-## Introduction
+# Key Features
 
-This is the github repository of *LION : Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge*. In this work, we enhance MLLMs by integrating fine-grained spatial-aware visual knowledge and high-level semantic visual evidence, boosting capabilities and alleviating hallucinations.
+## Image Analysis
 
-The framework of the proposed LION model:
+The system supports multiple analysis modes for images:
 
-<div align="center">
-<img src='./assets/LION-Method.jpg' width='100%'>
-</div>
+### Caption Generation
 
-## Installation
+Generate natural language descriptions using LION.
 
-### Download
-```bash
-git clone https://github.com/JiuTian-VL/JiuTian-LION.git
-cd JiuTian-LION
+### Object Detection
+
+Detect objects using **YOLO + LION semantic tagging**.
+
+### Object Clustering
+
+Group detected objects based on visual similarity.
+
+### Interactive Question Answering
+
+Ask questions about the image content.
+
+Example:
+
+```
+"What are the people doing?"
 ```
 
-### Environment
+### Spatial Scene Graph
 
-```bash
-conda create -n LION python=3.12
-conda activate LION
-conda install pip
+Extract **spatial relationships between objects**, such as:
+
+* left of
+* right of
+* above
+* below
+* near
+
+### Semantic Scene Graph
+
+Generate high-level semantic relations extracted from captions.
+
+Example:
+
+```
+(person, riding, horse)
+(dog, sitting on, grass)
+```
+
+### Prolog Symbolic Representation
+
+Convert scene descriptions into **Prolog facts and rules**, enabling logical reasoning over visual scenes.
+
+Example:
+
+```
+located(person, park).
+near(dog, person).
+talking(person1, person2).
+```
+
+---
+
+# Video Analysis
+
+The system also supports **video processing**.
+
+### Video Captioning
+
+Generate captions for key frames in the video.
+
+### Video Object Detection
+
+Detect objects frame by frame using YOLO.
+
+### Video Clustering
+
+Cluster objects detected across frames.
+
+### Interactive Video Question Answering
+
+Ask questions about objects appearing in the video.
+
+Example:
+
+```
+Is there a knife in the video?
+```
+
+### Spatial Graph Video
+
+Generate spatial scene graphs for selected frames.
+
+### Semantic Graph Video
+
+Extract semantic relations and captions for each frame.
+
+---
+
+# System Architecture
+
+The pipeline integrates multiple components:
+
+```
+Input (Image / Video)
+        │
+        ▼
+Object Detection (YOLO)
+        │
+        ▼
+LION Multimodal Model
+        │
+        ├── Caption Generation
+        ├── Question Answering
+        ├── Semantic Tags
+        │
+        ▼
+Scene Graph Generation
+        │
+        ├── Spatial Graph
+        └── Semantic Graph
+        │
+        ▼
+Symbolic Reasoning
+        │
+        ▼
+Prolog Representation
+```
+
+---
+
+# Installation
+
+Clone the repository:
+
+```
+git clone https://github.com/castro2123/LION-PIII
+cd LION-PIII
+```
+
+Create environment:
+
+```
+conda create -n lion python=3.12
+conda activate lion
 pip install -r requirements.txt
 ```
+
+---
+
+# Required Models
+
+Download the following pretrained models:
 
 ## Checkpoints
 
 | Version | Checkpoint |
 | --- | --- |
 | LION-FlanT5-XL| [daybreaksly/LION-FlanT5-XL](https://huggingface.co/daybreaksly/LION-FlanT5-XL) |
-| LION-FlanT5-XXL| [daybreaksly/LION-FlanT5-XXL](https://huggingface.co/daybreaksly/LION-FlanT5-XXL) |
+```
+
 
 ## Usage
 
@@ -78,112 +196,92 @@ pip install -r requirements.txt
 1. Download the pre-trained vit model [eva_vit_g](https://storage.googleapis.com/sfr-vision-language-research/LAVIS/models/BLIP2/eva_vit_g.pth).
 2. Download the pre-trained RAM model [ram_swin_large_14m](https://huggingface.co/spaces/xinyu1205/Recognize_Anything-Tag2Text/blob/main/ram_swin_large_14m.pth).
 3. Download the pre-trained FlanT5 model [FlanT5-XL](https://huggingface.co/google/flan-t5-xl).
+Comando de download:
+```
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='google/flan-t5-xl', local_dir='checkpoints/flan-t5-xl', local_dir_use_symlinks=False)"
+```
 4. Download the pre-trained BERT model [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased)
+Comando de download:
+```
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='bert-base-uncased', local_dir='checkpoints/bert-uncased', local_dir_use_symlinks=False)"
+```
 5. Fill in the paths to these models into the corresponding locations in the config file `configs\models\lion_flant5xl.yaml`
 
-### Inference
 
-We provide inference examples for **Image-Level** and **Region-Level** tasks in `playground.ipynb`.
+# Running the Application
 
-### Training
+Launch the Streamlit interface:
 
-We provide a training script and instruction to do stage4 training as an example.
+```
+streamlit run app.py
+```
 
-- Download dataset from [huggingface](https://huggingface.co/datasets/daybreaksly/LION-data-train)
-- Download images and organized them in one folder:
+Then open:
 
-Please download the following datasets:
-
-- **Training images**
-  - `OCR-VQA`
-  - `coco-2014`
-  - `coco-2017`
-  - `okvqa-2014`
-  - `textcaps`
-  - `vqav2-2014`
-  - `visual_genome`
-
-After downloading, place all these folders under a **single directory**.  
-For example:
-
-```bash
-/path/to/data/images/
-├── OCR-VQA/images
-├── coco/images/train2014
-├── coco_2017/train2017
-├── okvqa/images/train/train2014
-├── textcaps/images/train_images
-├── vqav2/images/train2014
-├── visual_genome/VG_100K
-└── visual_genome/VG_100K_2
+```
+http://localhost:8501
+```
 
 ---
-```
-In your config file, add the unified image folder path:
 
-```yaml
-train_datasets:
-  - ann_path: "/path/to/image_level_data.json"
-    vis_root: "/path/to/image_folder"
-    is_train: true
-    sample_ratio: 1
-  - ann_path: "/path/to/region_level_data.json"
-    vis_root: "/path/to/image_folder"
-    is_train: true
-    sample_ratio: 1
-```
+# Supported Modes
 
+| Mode                  | Description                     |
+| --------------------- | ------------------------------- |
+| Caption               | Generate image descriptions     |
+| Bounding Box          | Detect objects                  |
+| Clustering            | Group detected objects          |
+| Interactive QA        | Ask questions about images      |
+| Spatial Graph         | Generate spatial relations      |
+| Semantic Graph        | Extract semantic relations      |
+| Prolog Representation | Logical reasoning               |
+| Video Caption         | Caption key frames              |
+| Bounding Box Video    | Object detection in videos      |
+| Clustering Video      | Object clustering across frames |
+| Interactive Video QA  | Ask questions about videos      |
+| Spatial Graph Video   | Spatial relations in frames     |
+| Semantic Graph Video  | Semantic relations in frames    |
 
+---
 
-- Configure training with `configs/lion_train_stage4.yaml` (update model paths and dataset paths)
-- Run multi‑GPU training:
+# Example Interface
 
-```
-cd JiuTian-LION
-bash scripts/start_train.sh
-```
+The application provides a simple UI:
 
-Or manually:
+1. Upload an **image or video**
+2. Select the **analysis mode**
+3. Run the selected task
+4. Visualize results interactively
 
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 TOKENIZERS_PARALLELISM=true \
-  torchrun --master_port 12345 --nproc_per_node=4 \
-  train.py --cfg-path configs/lion_train_stage4.yaml
-```
+---
 
-Outputs and checkpoints are written to `outputs/lion_stage4/<timestamp>/` by default.
+# Research Background
 
-## Evaluation results
+This project builds upon the paper:
 
- For <b>image-level</b> tasks, we focus on image captioning and Visual Question Answering (VQA). For <b>region-level</b> tasks, we evaluate LION on three REC datasets including RefCOCO, RefCOCO+ and RefCOCOg. The results, detailed in Table 1~2, highlight LION's superior performance compared to baseline models.
+**LION: Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge**
 
-![Score](assets/LION-Score.jpg)
+Presented at **CVPR 2024**.
 
-![Image-level](assets/LION-Image-level.jpg)
-![Region-level](assets/LION-Region-level.jpg)
+Paper:
+https://arxiv.org/abs/2311.11860
 
-We further evaluate LION on a object hallucination benchmark([POPE](https://github.com/AoiDragon/POPE)) and the most popular MLLM benchmark ([MMBench](https://mmbench.opencompass.org.cn/home)). The results in Table 1~2 show that LION has strong performances across various skills and also demonstrates a strong resistance to hallucinations, particularly in popular and adversarial settings in POPE.
+---
 
-![MMBench](assets/LION-MMBench.jpg)
-![POPE](assets/LION-POPE.jpg)
+# Citation
 
-## Qualitative Comparison
+If you use this project, please cite:
 
-![Qualitative Comparison](assets/LION-Examples.jpg)
-![Qualitative Comparison](assets/LION-CapVQA.jpg)
-![Qualitative Comparison](assets/LION-REC.jpg)
-
-## More Examples
-![Qualitative Comparison](assets/LION-6Examples.jpg)
-
-## Citation
-
-If you find this work useful for your research, please kindly cite our paper:
 ```
 @inproceedings{chen2024lion,
-    title={LION: Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge}, 
-    author={Chen, Gongwei and Shen, Leyang and Shao, Rui and Deng, Xiang and Nie, Liqiang},
-    booktitle={IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
-    year={2024}
+title={LION: Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge},
+author={Chen, Gongwei and Shen, Leyang and Shao, Rui and Deng, Xiang and Nie, Liqiang},
+booktitle={CVPR},
+year={2024}
 }
 ```
+
+
+# License
+
+This project follows the same license as the original LION repository.
