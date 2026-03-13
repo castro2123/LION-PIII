@@ -27,6 +27,101 @@ All functionalities are available through an **interactive Streamlit interface**
 
 ---
 
+# Installation
+
+Clone the repository:
+
+```
+git clone https://github.com/castro2123/LION-PIII
+cd LION-PIII
+```
+
+Create environment:
+
+```
+conda create -n lion python=3.12
+conda activate lion
+pip install -r requirements.txt
+```
+
+---
+
+# Required Models
+
+Download the following pretrained models:
+
+## Checkpoints
+
+| Version | Checkpoint |
+| --- | --- |
+| LION-FlanT5-XL| [daybreaksly/LION-FlanT5-XL](https://huggingface.co/daybreaksly/LION-FlanT5-XL) |
+
+
+### Prepare models
+
+1. Download the pre-trained vit model [eva_vit_g](https://storage.googleapis.com/sfr-vision-language-research/LAVIS/models/BLIP2/eva_vit_g.pth).
+2. Download the pre-trained RAM model [ram_swin_large_14m](https://huggingface.co/spaces/xinyu1205/Recognize_Anything-Tag2Text/blob/main/ram_swin_large_14m.pth).
+3. Download the pre-trained FlanT5 model [FlanT5-XL](https://huggingface.co/google/flan-t5-xl).
+4. Download the pre-trained BERT model [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased)
+5. Fill in the paths to these models into the corresponding locations in the config file `configs\models\lion_flant5xl.yaml`
+
+
+Comando de download do pre-trained FlanT5 model [FlanT5-XL]:
+
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='google/flan-t5-xl', local_dir='checkpoints/flan-t5-xl', local_dir_use_symlinks=False)"
+
+Comando de download pre-trained BERT model [bert-base-uncased]:
+
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='bert-base-uncased', local_dir='checkpoints/bert-uncased', local_dir_use_symlinks=False)"
+
+
+# Running the Application
+
+Launch the Streamlit interface:
+
+```
+streamlit run app.py
+```
+
+Then open:
+
+```
+http://localhost:8501
+```
+
+---
+
+# Supported Modes
+
+| Mode                  | Description                     |
+| --------------------- | ------------------------------- |
+| Caption               | Generate image descriptions     |
+| Bounding Box          | Detect objects                  |
+| Clustering            | Group detected objects          |
+| Interactive QA        | Ask questions about images      |
+| Spatial Graph         | Generate spatial relations      |
+| Semantic Graph        | Extract semantic relations      |
+| Prolog Representation | Logical reasoning               |
+| Video Caption         | Caption key frames              |
+| Bounding Box Video    | Object detection in videos      |
+| Clustering Video      | Object clustering across frames |
+| Interactive Video QA  | Ask questions about videos      |
+| Spatial Graph Video   | Spatial relations in frames     |
+| Semantic Graph Video  | Semantic relations in frames    |
+
+---
+
+# Example Interface
+
+The application provides a simple UI:
+
+1. Upload an **image or video**
+2. Select the **analysis mode**
+3. Run the selected task
+4. Visualize results interactively
+
+---
+
 # Key Features
 
 ## Image Analysis
@@ -158,100 +253,7 @@ Prolog Representation
 
 ---
 
-# Installation
 
-Clone the repository:
-
-```
-git clone https://github.com/castro2123/LION-PIII
-cd LION-PIII
-```
-
-Create environment:
-
-```
-conda create -n lion python=3.12
-conda activate lion
-pip install -r requirements.txt
-```
-
----
-
-# Required Models
-
-Download the following pretrained models:
-
-## Checkpoints
-
-| Version | Checkpoint |
-| --- | --- |
-| LION-FlanT5-XL| [daybreaksly/LION-FlanT5-XL](https://huggingface.co/daybreaksly/LION-FlanT5-XL) |
-
-
-### Prepare models
-
-1. Download the pre-trained vit model [eva_vit_g](https://storage.googleapis.com/sfr-vision-language-research/LAVIS/models/BLIP2/eva_vit_g.pth).
-2. Download the pre-trained RAM model [ram_swin_large_14m](https://huggingface.co/spaces/xinyu1205/Recognize_Anything-Tag2Text/blob/main/ram_swin_large_14m.pth).
-3. Download the pre-trained FlanT5 model [FlanT5-XL](https://huggingface.co/google/flan-t5-xl).
-4. Download the pre-trained BERT model [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased)
-5. Fill in the paths to these models into the corresponding locations in the config file `configs\models\lion_flant5xl.yaml`
-
-
-Comando de download do pre-trained FlanT5 model [FlanT5-XL]:
-
-python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='google/flan-t5-xl', local_dir='checkpoints/flan-t5-xl', local_dir_use_symlinks=False)"
-
-Comando de download pre-trained BERT model [bert-base-uncased]:
-
-python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='bert-base-uncased', local_dir='checkpoints/bert-uncased', local_dir_use_symlinks=False)"
-
-
-# Running the Application
-
-Launch the Streamlit interface:
-
-```
-streamlit run app.py
-```
-
-Then open:
-
-```
-http://localhost:8501
-```
-
----
-
-# Supported Modes
-
-| Mode                  | Description                     |
-| --------------------- | ------------------------------- |
-| Caption               | Generate image descriptions     |
-| Bounding Box          | Detect objects                  |
-| Clustering            | Group detected objects          |
-| Interactive QA        | Ask questions about images      |
-| Spatial Graph         | Generate spatial relations      |
-| Semantic Graph        | Extract semantic relations      |
-| Prolog Representation | Logical reasoning               |
-| Video Caption         | Caption key frames              |
-| Bounding Box Video    | Object detection in videos      |
-| Clustering Video      | Object clustering across frames |
-| Interactive Video QA  | Ask questions about videos      |
-| Spatial Graph Video   | Spatial relations in frames     |
-| Semantic Graph Video  | Semantic relations in frames    |
-
----
-
-# Example Interface
-
-The application provides a simple UI:
-
-1. Upload an **image or video**
-2. Select the **analysis mode**
-3. Run the selected task
-4. Visualize results interactively
-
----
 
 # Research Background
 
