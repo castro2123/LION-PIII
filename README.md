@@ -186,10 +186,7 @@ Download the following pretrained models:
 | Version | Checkpoint |
 | --- | --- |
 | LION-FlanT5-XL| [daybreaksly/LION-FlanT5-XL](https://huggingface.co/daybreaksly/LION-FlanT5-XL) |
-```
 
-
-## Usage
 
 ### Prepare models
 
@@ -198,6 +195,7 @@ Download the following pretrained models:
 3. Download the pre-trained FlanT5 model [FlanT5-XL](https://huggingface.co/google/flan-t5-xl).
 4. Download the pre-trained BERT model [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased)
 5. Fill in the paths to these models into the corresponding locations in the config file `configs\models\lion_flant5xl.yaml`
+
 
 Comando de download do pre-trained FlanT5 model [FlanT5-XL]:
 ```
