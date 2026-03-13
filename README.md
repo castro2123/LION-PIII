@@ -196,17 +196,17 @@ Download the following pretrained models:
 1. Download the pre-trained vit model [eva_vit_g](https://storage.googleapis.com/sfr-vision-language-research/LAVIS/models/BLIP2/eva_vit_g.pth).
 2. Download the pre-trained RAM model [ram_swin_large_14m](https://huggingface.co/spaces/xinyu1205/Recognize_Anything-Tag2Text/blob/main/ram_swin_large_14m.pth).
 3. Download the pre-trained FlanT5 model [FlanT5-XL](https://huggingface.co/google/flan-t5-xl).
-Comando de download:
+4. Download the pre-trained BERT model [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased)
+5. Fill in the paths to these models into the corresponding locations in the config file `configs\models\lion_flant5xl.yaml`
+
+Comando de download do pre-trained FlanT5 model [FlanT5-XL]:
 ```
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='google/flan-t5-xl', local_dir='checkpoints/flan-t5-xl', local_dir_use_symlinks=False)"
 ```
-4. Download the pre-trained BERT model [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased)
-Comando de download:
+Comando de download pre-trained BERT model [bert-base-uncased]:
 ```
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='bert-base-uncased', local_dir='checkpoints/bert-uncased', local_dir_use_symlinks=False)"
 ```
-5. Fill in the paths to these models into the corresponding locations in the config file `configs\models\lion_flant5xl.yaml`
-
 
 # Running the Application
 
