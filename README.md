@@ -134,7 +134,7 @@ The pipeline integrates multiple components:
 Input (Image / Video)
         │
         ▼
-Object Detection (YOLO)
+Object Detection
         │
         ▼
 LION Multimodal Model
@@ -198,13 +198,13 @@ Download the following pretrained models:
 
 
 Comando de download do pre-trained FlanT5 model [FlanT5-XL]:
-```
+
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='google/flan-t5-xl', local_dir='checkpoints/flan-t5-xl', local_dir_use_symlinks=False)"
-```
+
 Comando de download pre-trained BERT model [bert-base-uncased]:
-```
+
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='bert-base-uncased', local_dir='checkpoints/bert-uncased', local_dir_use_symlinks=False)"
-```
+
 
 # Running the Application
 
