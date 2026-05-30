@@ -1,4 +1,5 @@
 from SpatialGraphVideo import generate_spatial_graph_frames
+from model_registry import get_models
 from objectDetection_Video import run_lion_qa_video
 from SemanticGraphVideo import generate_semantic_graph_frames
 import streamlit as st
@@ -11,7 +12,7 @@ import pandas as pd
 # --------------------------
 # Imports dos módulos
 # --------------------------
-from boudingBox import run_lion_yolo
+from boudingBox import run_lion_inference
 from clustering import run_clustering_lion
 from imageCaption import run_caption
 from SpatialGraph import run_spatial_graph
@@ -21,6 +22,8 @@ from videoCaption import run_video_caption
 from boundingBox_video import run_yolo_video_fast
 from clustering_video import run_clustering_video_streamlit
 from utils import show_result_image
+from yolo_comparison_ui import render_yolo_comparison
+
 # ==========================
 # Utils
 # ==========================
@@ -45,7 +48,26 @@ st.set_page_config(
     layout="wide"
 )
 st.title("LION - Empowering Multimodal Large Language Model with Dual-Level Visual Knowledge")
+#models = get_models()
+#device = "cuda" if torch.cuda.is_available() else "cpu"
 
+#st.subheader("GPU Debug")
+
+#st.write("CUDA available:", torch.cuda.is_available())
+#st.write("Device:", device)
+
+#try:
+#    st.write("LION device:", next(models["lion"].parameters()).device)
+#except:
+#    st.write("LION device: not available")
+
+#st.write("GPU name:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
+
+#device = "cuda" if torch.cuda.is_available() else "cpu"
+
+#st.write("CUDA available:", torch.cuda.is_available())
+#st.write("Device:", device)
+#st.write("GPU name:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
 # ==========================
 # Upload de imagem
 # ==========================
@@ -88,13 +110,13 @@ if uploaded_file:
 
         # Modos disponíveis para vídeo
         available_modes = [
-            "Video Caption",
-            "Bounding Box Video",
-            "Clustering Video",
-            "Interactive Video QA",
-            "Spatial Graph Video",
-            "Semantic Graph Video"
-
+            "Caption",
+            "Bounding Box Comparison",
+            "Clustering",
+            "Interactive LION QA",
+            "Spatial Scene Graph",
+            "Semantic Scene Graph",
+            "Prolog Representation",
         ]
 
     else:
@@ -127,17 +149,20 @@ if uploaded_file:
         # Modos disponíveis para imagem
         available_modes = [
             "Caption",
-            "Bounding Box",
+            "Bounding Box Comparison",
             "Clustering",
             "Interactive LION QA",
             "Spatial Scene Graph",
             "Semantic Scene Graph",
-            "Prolog Representation"
+            "Prolog Representation",
+            
         ]
 
 else:
     st.info("Upload an image or video to continue")
     st.stop()
+
+
 
 # ==========================
 # Selector de modo
@@ -186,7 +211,7 @@ elif mode == "Bounding Box":
 
     if st.button("Generate Bounding Boxes"):
         with st.spinner("Processing YOLO + LION..."):
-            img_out, detections, tags = run_lion_yolo(st.session_state.img)
+            img_out, detections, tags = run_lion_inference(st.session_state.img)
 
             st.session_state.bbox_result = {
                 "img": img_out,
@@ -206,6 +231,8 @@ elif mode == "Bounding Box":
         st.subheader("Tags LION (usage semantics)")
         st.json(r["tags"])
 
+elif mode == "Bounding Box Comparison":
+        render_yolo_comparison()
 
 # Clustering
 elif mode == "Clustering":

@@ -21,6 +21,9 @@ def get_models():
     # -------------------------
     yolo_world = YOLO("yolov8s-world.pt")
 
+    yolo_v8  = yolo_det               
+    yolo_v11 = YOLO("yolo11s.pt")     
+    yolo_v12 = YOLO("yolo12s.pt")
     # -------------------------
     # LION (caption / tags)
     # -------------------------
@@ -34,10 +37,18 @@ def get_models():
     processor = ImageEvalProcessor()
 
     return {
-        "yolo_det": yolo_det,
-        "yolo_seg": yolo_seg,
-        "yolo_world": yolo_world,   # 🔥 NOVO
-        "lion": lion,
-        "processor": processor,
-        "device": device
+        # YOLO clássicos
+        "yolo_det":   yolo_det,
+        "yolo_seg":   yolo_seg,
+        "yolo_world": yolo_world,
+ 
+        # YOLO comparison
+        "yolo_v8":    yolo_v8,
+        "yolo_v11":   yolo_v11,
+        "yolo_v12":   yolo_v12,
+ 
+        # LION
+        "lion":       lion,
+        "processor":  processor,
+        "device":     device,
     }
